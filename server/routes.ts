@@ -244,16 +244,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // System prompt for garden assistant
           const systemPrompt = `You are a helpful garden assistant that helps users catalog plants. 
-Extract structured data from user messages about plants, including:
+When users tell you about plants, extract information and use the functions to create garden beds and add plants to them.
+
+Extract structured data including:
 - Plant names (common or scientific)
 - Quantities
-- Time references
+- Garden bed names/locations
 - Sun exposure
 - Soil conditions
 - Health status
-- Location hints
 
-Be conversational and helpful. Ask clarifying questions when needed.`;
+When you have enough information about a plant and which bed it belongs to, immediately call the functions to save it. Be conversational and helpful.`;
+
+          // Define function declarations for Gemini
+          const tools = {
+            functionDeclarations: [
+              {
+                name: "create_garden_bed",
+                description: "Create a new garden bed in the user's garden",
+                parameters: {
+                  type: "OBJECT" as const,
+                  properties: {
+                    bedName: {
+                      type: "STRING" as const,
+                      description: "Name or location of the garden bed (e.g., 'Front Yard', 'Vegetable Garden')"
+                    },
+                    sunExposure: {
+                      type: "STRING" as const,
+                      description: "Sun exposure level: full_sun, partial_shade, or full_shade"
+                    },
+                    soilType: {
+                      type: "STRING" as const,
+                      description: "Type of soil: clay, sandy, loamy, or silty"
+                    },
+                    notes: {
+                      type: "STRING" as const,
+                      description: "Additional notes about the bed"
+                    }
+                  },
+                  required: ["bedName"]
+                }
+              },
+              {
+                name: "add_plant_to_bed",
+                description: "Add a plant to a garden bed",
+                parameters: {
+                  type: "OBJECT" as const,
+                  properties: {
+                    bedName: {
+                      type: "STRING" as const,
+                      description: "Name of the garden bed where this plant is located"
+                    },
+                    commonName: {
+                      type: "STRING" as const,
+                      description: "Common name of the plant"
+                    },
+                    scientificName: {
+                      type: "STRING" as const,
+                      description: "Scientific name of the plant"
+                    },
+                    quantity: {
+                      type: "INTEGER" as const,
+                      description: "Number of plants"
+                    },
+                    healthStatus: {
+                      type: "STRING" as const,
+                      description: "Current health status: healthy, needs_attention, or unhealthy"
+                    },
+                    notes: {
+                      type: "STRING" as const,
+                      description: "Additional notes about the plant"
+                    }
+                  },
+                  required: ["bedName", "commonName"]
+                }
+              }
+            ]
+          };
 
           // Convert messages to Gemini format
           const geminiHistory = messages.slice(0, -1).map((msg: any) => ({
@@ -261,11 +328,12 @@ Be conversational and helpful. Ask clarifying questions when needed.`;
             parts: [{ text: msg.content }],
           }));
 
-          // Call Gemini API using gemini-2.5-flash model
+          // Call Gemini API using gemini-2.5-flash model with function calling
           const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             config: {
               systemInstruction: systemPrompt,
+              tools,
             },
             contents: [
               ...geminiHistory,
@@ -276,7 +344,68 @@ Be conversational and helpful. Ask clarifying questions when needed.`;
             ],
           });
 
-          assistantMessage = response.text || "I'm sorry, I couldn't process that.";
+          // Handle function calls
+          let assistantMessage: string;
+          const functionCalls = response.functionCalls;
+          
+          if (functionCalls && functionCalls.length > 0) {
+            const functionCall = functionCalls[0];
+            const { name, args } = functionCall;
+            
+            if (name === "create_garden_bed") {
+              // Create the garden bed
+              const newBed = await storage.createGardenBed({
+                userId,
+                bedName: args.bedName,
+                sunExposure: args.sunExposure || null,
+                soilType: args.soilType || null,
+                notes: args.notes || null,
+                bedSizeSqft: null,
+                soilMoisture: null,
+              });
+              
+              assistantMessage = `Great! I've created the "${args.bedName}" garden bed for you. You can now add plants to it!`;
+            } else if (name === "add_plant_to_bed") {
+              // Find or create the bed
+              const beds = await storage.getGardenBedsByUser(userId);
+              let bed = beds.find(b => b.bedName.toLowerCase() === args.bedName.toLowerCase());
+              
+              if (!bed) {
+                // Create the bed if it doesn't exist
+                bed = await storage.createGardenBed({
+                  userId,
+                  bedName: args.bedName,
+                  sunExposure: null,
+                  soilType: null,
+                  notes: null,
+                  bedSizeSqft: null,
+                  soilMoisture: null,
+                });
+              }
+              
+              // Add the plant
+              await storage.createPlant({
+                bedId: bed.id,
+                commonName: args.commonName,
+                scientificName: args.scientificName || null,
+                quantity: args.quantity || 1,
+                healthStatus: args.healthStatus || null,
+                notes: args.notes || null,
+                plantType: null,
+                datePlanted: null,
+                imageUrl: null,
+                spacingInches: null,
+                currentHeight: null,
+                identificationConfidence: null,
+              });
+              
+              assistantMessage = `Perfect! I've added ${args.quantity || 1} ${args.commonName} to the "${bed.bedName}" bed. Check the Beds page to see it!`;
+            } else {
+              assistantMessage = response.text || "I'm sorry, I couldn't process that.";
+            }
+          } else {
+            assistantMessage = response.text || "I'm sorry, I couldn't process that.";
+          }
         } catch (error: any) {
           // If Gemini fails, provide a helpful fallback message
           assistantMessage = "I'm having trouble connecting to my AI service right now. Could you try again in a moment? Your message has been saved.";
