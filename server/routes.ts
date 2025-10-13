@@ -193,7 +193,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!response.ok) {
-        throw new Error(`Plant.id API error: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Plant.id API error:", errorData);
+        throw new Error(`Plant.id API error: ${response.statusText} - ${JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
