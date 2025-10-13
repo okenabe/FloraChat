@@ -249,17 +249,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // System prompt for garden assistant
           const systemPrompt = `You are a helpful garden assistant that helps users catalog plants. 
-When users tell you about plants, extract information and use the functions to create garden beds and add plants to them.
+When users tell you about plants, you MUST use the add_plant_to_bed function for EACH plant they mention.
+
+IMPORTANT: Call add_plant_to_bed separately for each plant. If the user mentions multiple plants, make multiple function calls - one per plant.
+
+Example: If user says "add rose, tulip, and daisy to my garden bed", you must:
+1. Call add_plant_to_bed for rose
+2. Call add_plant_to_bed for tulip  
+3. Call add_plant_to_bed for daisy
 
 Extract structured data including:
 - Plant names (common or scientific)
-- Quantities
+- Quantities (default 1 if not specified)
 - Garden bed names/locations
 - Sun exposure
 - Soil conditions
 - Health status
 
-When you have enough information about a plant and which bed it belongs to, immediately call the functions to save it. Be conversational and helpful.`;
+Always use the functions to save the data. Be conversational and helpful.`;
 
           // Define function declarations for Gemini
           const tools = [
@@ -357,6 +364,10 @@ When you have enough information about a plant and which bed it belongs to, imme
           // Handle function calls - process ALL of them
           let assistantMessage: string;
           const functionCalls = response.functionCalls;
+          
+          // Log what Gemini wants to do
+          console.log("Gemini function calls:", JSON.stringify(functionCalls, null, 2));
+          console.log("Gemini response text:", response.text);
           
           if (functionCalls && functionCalls.length > 0) {
             const results: string[] = [];
