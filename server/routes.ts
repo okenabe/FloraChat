@@ -293,8 +293,6 @@ Always include the "response" field with a friendly message.`;
             ],
           });
 
-          let assistantMessage: string;
-          
           try {
             // Parse JSON response
             const jsonText = response.text;
