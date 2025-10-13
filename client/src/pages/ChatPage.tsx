@@ -97,12 +97,10 @@ export default function ChatPage() {
       return response.json();
     },
     onSuccess: (data: any) => {
-      console.log("Chat API response:", data);
-      console.log("Message content:", data.message);
       const response: Message = {
         id: Date.now().toString(),
         role: "assistant",
-        content: data.message || "No message received",
+        content: data.message,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, response]);

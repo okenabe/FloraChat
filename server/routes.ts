@@ -296,7 +296,6 @@ Always include the "response" field with a friendly message.`;
           try {
             // Parse JSON response
             const jsonText = response.text;
-            console.log("Gemini JSON response:", jsonText);
             const data = JSON.parse(jsonText);
             
             if (data.action === "add_plants" && data.plants && data.plants.length > 0) {
@@ -368,12 +367,10 @@ Always include the "response" field with a friendly message.`;
         });
       }
 
-      const responseData = { 
+      res.json({ 
         message: assistantMessage,
         conversationId: conversation.id,
-      };
-      console.log("Sending response to frontend:", JSON.stringify(responseData));
-      res.json(responseData);
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
