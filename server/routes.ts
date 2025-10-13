@@ -230,6 +230,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? JSON.parse(conversation.messages)
         : [];
 
+      // Ensure message has valid content
+      if (!message || message.trim().length === 0) {
+        return res.status(400).json({ error: "Message cannot be empty" });
+      }
+
       messages.push({ role: "user", content: message });
 
       let assistantMessage: string;
@@ -324,11 +329,14 @@ When you have enough information about a plant and which bed it belongs to, imme
             }
           ];
 
-          // Convert messages to Gemini format
-          const geminiHistory = messages.slice(0, -1).map((msg: any) => ({
-            role: msg.role === "assistant" ? "model" : "user",
-            parts: [{ text: msg.content }],
-          }));
+          // Convert messages to Gemini format, filtering out any messages with empty content
+          const geminiHistory = messages
+            .slice(0, -1)
+            .filter((msg: any) => msg.content && msg.content.trim().length > 0)
+            .map((msg: any) => ({
+              role: msg.role === "assistant" ? "model" : "user",
+              parts: [{ text: msg.content }],
+            }));
 
           // Call Gemini API using gemini-2.5-flash model with function calling
           const response = await ai.models.generateContent({
