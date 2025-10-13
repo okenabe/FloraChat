@@ -178,31 +178,77 @@ export default function ChatPage() {
           const suggestions = data.result.classification.suggestions.slice(0, 3);
           const topMatch = suggestions[0];
           
-          let responseContent = `Great photo! 📸 I've identified this plant:\n\n`;
-          responseContent += `**${topMatch.name}**\n`;
-          responseContent += `Confidence: ${Math.round(topMatch.probability * 100)}%\n\n`;
-          
+          // Build context message for Gemini
+          let contextMessage = `I just analyzed a plant photo using Plant.id API. Here's what I found:\n\n`;
+          contextMessage += `Primary identification: ${topMatch.name}`;
           if (topMatch.details?.common_names?.length > 0) {
-            responseContent += `Common names: ${topMatch.details.common_names.slice(0, 3).join(", ")}\n\n`;
+            contextMessage += ` (commonly known as: ${topMatch.details.common_names.slice(0, 3).join(", ")})`;
+          }
+          contextMessage += `\nConfidence: ${Math.round(topMatch.probability * 100)}%\n`;
+          
+          if (topMatch.details?.taxonomy) {
+            const tax = topMatch.details.taxonomy;
+            contextMessage += `\nTaxonomy:`;
+            if (tax.family) contextMessage += `\n- Family: ${tax.family}`;
+            if (tax.genus) contextMessage += `\n- Genus: ${tax.genus}`;
           }
           
           if (suggestions.length > 1) {
-            responseContent += `It could also be:\n`;
+            contextMessage += `\n\nAlternative possibilities:`;
             suggestions.slice(1).forEach((alt: any, idx: number) => {
-              responseContent += `${idx + 2}. ${alt.name} (${Math.round(alt.probability * 100)}%)\n`;
+              contextMessage += `\n${idx + 2}. ${alt.name} (${Math.round(alt.probability * 100)}% confidence)`;
             });
-            responseContent += `\n`;
           }
           
-          responseContent += `Would you like to add this to your garden catalog? Tell me which bed it's in, or I can help you create a new bed!`;
+          // Send identification context to Gemini via chat API
+          const chatResponse = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: contextMessage,
+              userId: user?.id,
+            }),
+          });
+          
+          if (chatResponse.ok) {
+            const chatData = await chatResponse.json();
+            
+            // Add Gemini's response (which now has context about the plant)
+            const assistantMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: "assistant",
+              content: chatData.message,
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            };
+            setMessages((prev) => [...prev, assistantMsg]);
+          } else {
+            // Fallback if chat API fails
+            let responseContent = `Great photo! 📸 I've identified this plant:\n\n`;
+            responseContent += `**${topMatch.name}**\n`;
+            responseContent += `Confidence: ${Math.round(topMatch.probability * 100)}%\n\n`;
+            
+            if (topMatch.details?.common_names?.length > 0) {
+              responseContent += `Common names: ${topMatch.details.common_names.slice(0, 3).join(", ")}\n\n`;
+            }
+            
+            if (suggestions.length > 1) {
+              responseContent += `It could also be:\n`;
+              suggestions.slice(1).forEach((alt: any, idx: number) => {
+                responseContent += `${idx + 2}. ${alt.name} (${Math.round(alt.probability * 100)}%)\n`;
+              });
+              responseContent += `\n`;
+            }
+            
+            responseContent += `Would you like to add this to your garden catalog? Tell me which bed it's in, or I can help you create a new bed!`;
 
-          const assistantMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: "assistant",
-            content: responseContent,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          };
-          setMessages((prev) => [...prev, assistantMsg]);
+            const assistantMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: "assistant",
+              content: responseContent,
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            };
+            setMessages((prev) => [...prev, assistantMsg]);
+          }
         } else {
           throw new Error("Not a plant image");
         }
