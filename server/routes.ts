@@ -257,8 +257,9 @@ Extract structured data including:
 When you have enough information about a plant and which bed it belongs to, immediately call the functions to save it. Be conversational and helpful.`;
 
           // Define function declarations for Gemini
-          const tools = {
-            functionDeclarations: [
+          const tools = [
+            {
+              functionDeclarations: [
               {
                 name: "create_garden_bed",
                 description: "Create a new garden bed in the user's garden",
@@ -320,7 +321,8 @@ When you have enough information about a plant and which bed it belongs to, imme
                 }
               }
             ]
-          };
+            }
+          ];
 
           // Convert messages to Gemini format
           const geminiHistory = messages.slice(0, -1).map((msg: any) => ({
