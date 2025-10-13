@@ -370,10 +370,12 @@ Always include the "response" field with a friendly message.`;
         });
       }
 
-      res.json({ 
+      const responseData = { 
         message: assistantMessage,
         conversationId: conversation.id,
-      });
+      };
+      console.log("Sending response to frontend:", JSON.stringify(responseData));
+      res.json(responseData);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
