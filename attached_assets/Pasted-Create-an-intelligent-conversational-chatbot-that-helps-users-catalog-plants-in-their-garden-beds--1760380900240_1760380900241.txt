@@ -1,0 +1,559 @@
+Create an intelligent conversational chatbot that helps users catalog 
+plants in their garden beds. The bot should identify plants from photos, 
+understand natural language descriptions, and extract structured data from 
+casual conversation.
+
+---
+
+DATA MODEL:
+
+1. USERS table:
+   - user_id (primary key)
+   - name
+   - email
+   - location (city, zip code)
+   - yard_size (small/medium/large)
+   - experience_level (beginner/intermediate/expert)
+   - created_at
+   - last_active
+
+2. GARDEN_BEDS table:
+   - bed_id (primary key)
+   - user_id (foreign key)
+   - bed_name (e.g., "Front Yard Border", "Shady Side Bed")
+   - bed_size_sqft
+   - sun_exposure (full sun/partial sun/partial shade/full shade)
+   - soil_type (clay/loam/sand/amended)
+   - soil_moisture (dry/medium/moist)
+   - notes (free text)
+   - created_at
+   - last_updated
+
+3. PLANTS table:
+   - plant_id (primary key)
+   - bed_id (foreign key)
+   - common_name
+   - scientific_name (optional)
+   - plant_type (perennial/annual/shrub/tree/grass)
+   - date_planted
+   - image_url (if user uploads photo)
+   - quantity
+   - spacing_inches
+   - current_height
+   - health_status (thriving/ok/struggling/dead)
+   - identification_confidence (0-100, from plant ID API)
+   - notes (free text)
+   - created_at
+   - last_updated
+
+---
+
+AI CAPABILITIES REQUIRED:
+
+1. PLANT IDENTIFICATION FROM IMAGES:
+   - Integrate with Plant.id API, iNaturalist API, or Google Vision API
+   - Return top 3 plant matches with confidence scores
+   - Extract visible features (flower color, leaf shape, size)
+
+2. NATURAL LANGUAGE UNDERSTANDING:
+   - Parse unstructured text to extract:
+     * Plant names (common or scientific)
+     * Time references ("last spring", "3 years ago", "last month")
+     * Quantities ("a few", "couple", "bunch", "three")
+     * Conditions ("sunny spot", "shady area", "wet soil")
+     * Health descriptors ("doing great", "struggling", "dying")
+     * Locations ("by the fence", "front yard", "near the driveway")
+   
+3. ENTITY EXTRACTION EXAMPLES:
+   Input: "I planted some hostas last spring in the shady corner and they're 
+          doing great"
+   Extract:
+   - Plant: "hostas"
+   - Date: "spring [current year - 1]"
+   - Sun exposure: "full shade"
+   - Health: "thriving"
+   - Location/bed hint: "shady corner"
+
+   Input: "There's this purple flowering thing by my mailbox that I think 
+          is dying"
+   Extract:
+   - Plant: "unknown purple flowering plant" [needs identification]
+   - Health: "struggling" or "dead"
+   - Location/bed hint: "by mailbox"
+   - Trigger: Ask for photo
+
+   Input: "I have three Japanese maples in partial sun, planted 2019"
+   Extract:
+   - Plant: "Japanese maple"
+   - Quantity: 3
+   - Sun exposure: "partial sun"
+   - Date: "2019"
+
+---
+
+CHATBOT CONVERSATION FLOW:
+
+GREETING:
+"Hi! 👋 I'm your AI garden assistant. I can help you catalog your plants 
+by identifying them from photos or just chatting about what's in your 
+garden.
+
+To get started, you can:
+📷 Send me a photo of a plant
+💬 Tell me what you're growing (e.g., 'I have some roses in my front yard')
+🗺️ Describe a garden bed and I'll help organize it
+
+What works best for you?"
+
+---
+
+SCENARIO 1: PHOTO-FIRST APPROACH
+
+[User uploads image]
+
+AGENT PROCESSING:
+1. Call plant identification API with image
+2. Get top 3 matches with confidence scores
+3. Analyze image for context (size, location, health)
+
+RESPONSE (High Confidence >85%):
+"Great photo! 📸 That looks like a **[Plant Name]** ([Scientific Name]).
+I'm about 92% confident.
+
+Quick details:
+- Type: [Perennial/Annual/Shrub]
+- Light needs: [Full sun/Part shade/etc]
+- Mature size: [Height x Width]
+
+Does that sound right? If so, let's add it to your garden catalog!
+
+Which bed is this in? (You can say something like 'front yard' or 'shady 
+side garden' - or I can help you create a new bed)"
+
+RESPONSE (Medium Confidence 60-85%):
+"I think this might be a **[Plant Name]**, but I'm only 68% sure. 
+
+It could also be:
+- [Alternative 1] (15% match)
+- [Alternative 2] (12% match)
+
+Does any of these sound familiar? Or tell me more about it:
+- Where is it planted? (sun/shade?)
+- What color are the flowers?
+- When did you plant it?"
+
+RESPONSE (Low Confidence <60%):
+"Hmm, I'm having trouble identifying this one from the photo. 🤔
+
+Could you help me out? Tell me:
+- What do you call it? (even 'the purple flowering bush' works!)
+- Where is it planted?
+- Any other details you remember?
+
+I'll still save it to your catalog with the photo so you can reference it 
+later."
+
+---
+
+SCENARIO 2: NATURAL LANGUAGE FIRST
+
+[User types: "I have lavender and rosemary in my herb garden by the kitchen"]
+
+AGENT PROCESSING:
+1. Extract entities:
+   - Plants: ["lavender", "rosemary"]
+   - Bed hint: "herb garden by the kitchen"
+   - Quantity: implied multiple (unspecified)
+   - Location context: near kitchen (practical access)
+
+RESPONSE:
+"Nice! 🌿 Lavender and rosemary are great together - both love sun and 
+don't need much water.
+
+Let me set this up:
+**Herb Garden (by kitchen)**
+- Lavender (1 plant? More?)
+- Rosemary (1 plant? More?)
+
+A few quick questions:
+- How much sun does this spot get? (I'm guessing full sun for these herbs?)
+- When did you plant them? (this year? last year? just estimate)
+- How are they doing? (thriving? okay? struggling?)
+
+Or just say 'looks good' and I'll save what we have!"
+
+---
+
+SCENARIO 3: VAGUE/INCOMPLETE INPUT
+
+[User types: "there's some dying stuff in my backyard"]
+
+AGENT RESPONSE:
+"Oh no! Let's figure out what's going on. 🔍
+
+To help you best, I need a bit more info:
+- Can you send me a photo of the struggling plant?
+- OR describe it: What does it look like? (flower color, leaf shape, size?)
+- Where in the backyard? (sunny spot? shady? wet area?)
+
+The more details you share, the better I can help identify and save it!"
+
+---
+
+SCENARIO 4: MIXED INPUT (Text + Image)
+
+[User uploads image and writes: "planted these last fall, they're not doing 
+well, get morning sun"]
+
+AGENT PROCESSING:
+1. Identify plant from image → "[Plant Name]"
+2. Extract from text:
+   - Date planted: "fall [previous year]"
+   - Health: "struggling"
+   - Sun: "partial sun" (morning sun = 4-6 hours)
+
+RESPONSE:
+"Got it! Based on your photo, these look like **[Plant Name]**. 
+
+Here's what I'm noting:
+✓ Planted: Fall [year]
+✓ Location: Morning sun area
+⚠️ Current status: Struggling
+
+[Plant Name] typically needs [ideal conditions]. Since they're in morning 
+sun and struggling, it might be [potential issue based on conditions].
+
+Should I add these to your catalog? Which bed should I put them in?
+(Or I can create a new bed called 'Morning Sun Area' or whatever you prefer)"
+
+---
+
+SMART BED CREATION FROM CONTEXT:
+
+When user mentions location without explicit bed:
+"I don't have a 'front yard bed' in your catalog yet. 
+
+Should I create one? I can call it:
+- 'Front Yard' 
+- 'Front Yard Border'
+- Or you tell me what to call it
+
+I'll also note that it gets [extracted sun exposure] based on what you said."
+
+AUTO-FILL BED METADATA:
+If user says "shady corner" → sun_exposure = "full shade"
+If user says "sunny spot" → sun_exposure = "full sun"  
+If user says "under the tree" → sun_exposure = "partial shade"
+If user says "wet area" → soil_moisture = "moist"
+If user says "dry hillside" → soil_moisture = "dry"
+
+---
+
+HANDLING UNCERTAINTY WITH GRACE:
+
+QUANTITY AMBIGUITY:
+User: "I have some hostas"
+Bot: "How many hostas do you have? (rough estimate is fine - 2? 5? 10+?)"
+
+TIME AMBIGUITY:
+User: "planted a while ago"
+Bot: "No worries! Best guess - was it:
+- This year (2025)
+- Last year (2024)  
+- 2-3 years ago
+- Longer than that?
+Just pick what feels closest!"
+
+NAME AMBIGUITY:
+User: "I have that plant with the purple flowers"
+Bot: "Let me help identify it! Can you send a photo? Or describe:
+- How tall is it? (inches? feet?)
+- What do the leaves look like?
+- When does it bloom?
+I'll do my best to figure out what it is!"
+
+---
+
+CONFIRMATION BEFORE SAVING:
+
+After extracting data, always summarize:
+
+"Perfect! Here's what I've got:
+
+**[Bed Name]**
+🌱 [Plant Name] ([Scientific Name])
+   • Quantity: [#]
+   • Planted: [Date]
+   • Sun: [Exposure]
+   • Status: [Health]
+   • [Any user notes]
+
+Look good? 
+
+[Save to catalog] [Edit something] [Start over]"
+
+---
+
+CONVERSATIONAL MEMORY:
+
+Track context within conversation:
+- Current bed being discussed
+- Last plant mentioned
+- Pending clarifications
+
+Example:
+User: "I also have some in the backyard"
+Bot: [remembers last plant was "lavender"]
+"Got it - so lavender in your backyard too? 
+
+Is the backyard a different bed with different conditions, or similar to 
+your herb garden?"
+
+---
+
+API INTEGRATIONS NEEDED:
+
+1. PLANT IDENTIFICATION:
+   Primary: Plant.id API
+   - Endpoint: POST /api/v3/identification
+   - Input: Base64 encoded image
+   - Output: Plant suggestions with confidence scores, common names, 
+     scientific names, taxonomy
+   
+   Fallback: iNaturalist API or Pl@ntNet
+
+2. NATURAL LANGUAGE PROCESSING:
+   Use OpenAI GPT-4 or Claude for entity extraction:
+   
+   Prompt template:
+   "Extract structured plant data from this user message: '[user input]'
+   
+   Return JSON with:
+   {
+     "plants": [{"name": "...", "quantity": "...", "scientific_name": "..."}],
+     "bed_name": "...",
+     "sun_exposure": "...",
+     "soil_conditions": "...",
+     "date_planted": "...",
+     "health_status": "...",
+     "location_hints": "...",
+     "confidence": "high/medium/low"
+   }
+   
+   If information is missing or ambiguous, set to null and mark confidence 
+   as low."
+
+3. IMAGE PREPROCESSING:
+   - Compress images to <5MB before sending to plant ID API
+   - Auto-rotate based on EXIF data
+   - Enhance contrast/brightness if image is too dark
+
+---
+
+ERROR HANDLING & EDGE CASES:
+
+PLANT ID API FAILURE:
+"Hmm, my plant identification isn't working right now. 😕
+No problem though! Just tell me what you call this plant and I'll save it 
+with the photo. We can identify it later."
+
+MULTIPLE PLANTS IN ONE PHOTO:
+"I see a few different plants in this photo! 🌿🌸🌺
+Which one are you asking about? Describe it or circle it if you can, or 
+send separate photos for each plant."
+
+USER UPLOADS NON-PLANT IMAGE:
+"This doesn't look like a plant photo to me. 🤔
+Did you mean to upload a different image? Or if this is your plant, help 
+me out - where is it in the photo?"
+
+CONFLICTING INFORMATION:
+User: "This rose is in full shade"
+Bot: [knows roses need full sun]
+"Just checking - you said this rose is in full shade? Roses typically need 
+full sun to thrive. Is it possible the spot gets more sun than you think, 
+or is it a shade-tolerant variety?"
+
+---
+
+PROGRESSIVE DISCLOSURE:
+
+Start simple, get complex only if needed:
+
+LEVEL 1 (Basic):
+- Plant name
+- Which bed
+- Photo if available
+
+LEVEL 2 (If user engaged):
+- Date planted
+- Quantity
+- Current health
+
+LEVEL 3 (Power users only):
+- Spacing details
+- Scientific names
+- Detailed notes
+- Height tracking
+
+Bot adapts based on user responses:
+If user gives detailed info → match that detail level
+If user gives minimal info → keep it simple
+
+---
+
+SAMPLE CONVERSATION FLOWS:
+
+FLOW 1: Complete natural language
+User: "I planted three lavenders last spring in my sunny herb garden and 
+they're doing amazing"
+
+Bot: "Fantastic! 🌿 Lavender is perfect for sunny spots.
+
+I'm creating:
+**Herb Garden**
+🌱 Lavender
+   • Quantity: 3 plants
+   • Planted: Spring 2024
+   • Sun: Full sun
+   • Status: Thriving
+
+Need a photo? Or should I save this now?"
+
+User: "save it"
+
+Bot: "✓ Saved! You now have 1 bed with 3 plants.
+
+Want to add more plants or create another bed?"
+
+---
+
+FLOW 2: Photo identification
+User: [uploads blurry flower photo]
+
+Bot: "I can see some purple/blue flowers! 💜
+
+This might be:
+1. Salvia (72% match)
+2. Catmint (18% match)  
+3. Lavender (10% match)
+
+The photo's a bit blurry - do any of these sound right? Or snap another 
+clearer photo if you can!"
+
+User: "it's catmint"
+
+Bot: "Perfect! Catmint it is. 
+
+Which garden bed should I add this to? (or describe where it's planted and 
+I'll create a new bed)"
+
+---
+
+FLOW 3: Building context iteratively
+User: "I have hostas"
+
+Bot: "Great choice - hostas are so easy! 🌿
+
+Tell me about them:
+- Where are they planted? (shady spot? under trees?)
+- How many do you have?"
+
+User: "three in the shade by my deck"
+
+Bot: "Perfect! So:
+**Shade area by deck** (new bed)
+🌱 Hostas (3 plants)
+
+When did you plant them? (rough guess is fine)"
+
+User: "couple years ago"
+
+Bot: "Got it - I'll note them as planted in 2023.
+
+How are they doing?"
+
+User: "really well"
+
+Bot: "Excellent! Here's your complete entry:
+
+**Shade area by deck**
+🌱 Hostas (3 plants)
+   • Planted: ~2023
+   • Sun: Full shade (under deck)
+   • Status: Thriving
+
+✓ Ready to save! 
+
+[Save] [Edit] [Cancel]"
+
+---
+
+PERSONALITY & TONE:
+
+- Friendly and encouraging
+- Patient with vague information
+- Celebrates successes ("That's thriving? Awesome! 🎉")
+- Sympathetic with struggles ("Oh no, that's tough. Let's figure out what's 
+  going wrong.")
+- Educational without being preachy (slip in care tips naturally)
+- Uses appropriate emojis (plants, garden-related, celebrations)
+- Never judgmental about plant failures
+- Adapts formality to user's style
+
+---
+
+TECHNICAL IMPLEMENTATION NOTES:
+
+1. NLP ENTITY EXTRACTION:
+   Use LLM API call for each user message:
+   - Send user message + conversation context
+   - Request structured JSON extraction
+   - Parse and validate extracted entities
+   - Use confidence scores to decide when to ask clarifying questions
+
+2. PLANT ID WORKFLOW:
+   Step 1: User uploads image
+   Step 2: Send to Plant.id API
+   Step 3: Receive results (async, may take 5-10 seconds)
+   Step 4: Show "Analyzing your photo..." loading state
+   Step 5: Present results with confidence-appropriate messaging
+
+3. CONTEXTUAL MEMORY:
+   Store in session:
+   - Current bed being edited
+   - Last 5 user messages
+   - Extracted entities pending confirmation
+   - Plants added in this session
+   
+4. FALLBACK STRATEGY:
+   If NLP extraction fails → fall back to guided questions
+   If plant ID fails → allow manual entry with photo saved
+   If user frustrated → offer simple form as alternative
+
+5. DATA VALIDATION:
+   - Dates: convert relative time ("last spring") to actual dates
+   - Quantities: convert words ("a few" = 3, "several" = 5, "many" = 10+)
+   - Sun exposure: map descriptions to categories
+   - Always confirm before saving to database
+
+---
+
+SUCCESS METRICS:
+
+✓ User can add a plant with photo in under 2 minutes
+✓ 80%+ plant ID accuracy for clear photos
+✓ 90%+ of natural language inputs correctly parsed
+✓ Users can describe plants casually without learning special syntax
+✓ Zero required fields - system adapts to whatever info user provides
+✓ Users feel understood, not interrogated
+
+---
+
+FUTURE ENHANCEMENTS:
+
+- Voice input ("Alexa, add lavender to my herb garden")
+- Bulk upload (photo of entire bed, ID all plants at once)
+- Seasonal check-ins ("How's your [plant] doing this spring?")
+- Proactive suggestions ("Based on your shade bed, you might like hostas")
+- Community plant ID (if bot unsure, ask other gardeners)
