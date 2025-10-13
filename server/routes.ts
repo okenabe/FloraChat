@@ -180,7 +180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Call Plant.id API
-      const response = await fetch("https://api.plant.id/v3/identification", {
+      const response = await fetch("https://api.plant.id/v3/identification?details=common_names,url,taxonomy,wiki_description", {
         method: "POST",
         headers: {
           "Api-Key": process.env.PLANTID_API_KEY,
@@ -188,7 +188,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         body: JSON.stringify({
           images: [base64Image],
-          details: ["common_names", "url", "taxonomy", "description"],
         }),
       });
 
