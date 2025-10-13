@@ -14,6 +14,13 @@ export default function BedsPage() {
 
   const { data: beds = [], isLoading } = useQuery<GardenBed[]>({
     queryKey: ["/api/beds", user?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/beds?userId=${user?.id}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch beds');
+      }
+      return res.json();
+    },
     enabled: !!user,
   });
 
