@@ -7,9 +7,11 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { useUser } from "@/lib/userContext";
 import { apiRequest } from "@/lib/queryClient";
-import { Sprout, Menu, X } from "lucide-react";
+import { Sprout, Menu, X, MessageSquare, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Link, useLocation } from "wouter";
+import { cn } from "@/lib/utils";
 
 interface Message {
   id: string;
@@ -20,6 +22,7 @@ interface Message {
 
 export default function ChatPage() {
   const { user, isLoading: userLoading } = useUser();
+  const [location] = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
@@ -290,7 +293,33 @@ export default function ChatPage() {
             </h1>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <nav className="hidden lg:flex items-center gap-1">
+            <Link href="/">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(location === "/" && "bg-accent")}
+                data-testid="nav-chat-desktop"
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Chat
+              </Button>
+            </Link>
+            <Link href="/beds">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(location === "/beds" && "bg-accent")}
+                data-testid="nav-beds-desktop"
+              >
+                <Grid3x3 className="h-4 w-4 mr-2" />
+                Beds
+              </Button>
+            </Link>
+          </nav>
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-6" data-testid="chat-messages-container">
