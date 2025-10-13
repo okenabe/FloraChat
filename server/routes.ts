@@ -248,23 +248,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
           // System prompt - extract structured data as JSON
-          const systemPrompt = `You are a helpful garden assistant that helps users catalog plants.
+          const systemPrompt = `You are a helpful garden assistant that helps users catalog and manage their garden plants.
 
-When users tell you about plants, extract the information and return it in this JSON format:
+ACTIONS:
+1. Adding plants:
 {
   "action": "add_plants",
   "bedName": "name of the garden bed",
-  "plants": [
-    {"commonName": "plant name", "scientificName": "optional", "quantity": 1, "notes": "optional"}
-  ],
+  "plants": [{"commonName": "plant name", "scientificName": "optional", "quantity": 1, "notes": "optional"}],
   "response": "Your friendly response to the user"
 }
 
-If the user is just chatting or asking questions (not adding plants), return:
+2. Removing/deleting plants:
+{
+  "action": "remove_plants",
+  "bedName": "name of the garden bed",
+  "plantNames": ["tomato", "basil"],
+  "response": "Your friendly confirmation message"
+}
+
+3. Removing/deleting an entire bed:
+{
+  "action": "remove_bed",
+  "bedName": "name of the garden bed to remove",
+  "response": "Your friendly confirmation message"
+}
+
+4. Just chatting or asking questions:
 {
   "action": "chat",
   "response": "Your friendly response"
 }
+
+Examples:
+- "Remove the tomato from my herb garden" → action: "remove_plants", bedName: "herb garden", plantNames: ["tomato"]
+- "Delete the vegetable bed" → action: "remove_bed", bedName: "vegetable bed"
+- "Add basil to my herb garden" → action: "add_plants", bedName: "herb garden", plants: [{"commonName": "basil", "quantity": 1}]
 
 Always include the "response" field with a friendly message.`;
 
@@ -295,7 +314,7 @@ Always include the "response" field with a friendly message.`;
 
           try {
             // Parse JSON response
-            const jsonText = response.text;
+            const jsonText = response.text || "";
             const data = JSON.parse(jsonText);
             
             if (data.action === "add_plants" && data.plants && data.plants.length > 0) {
@@ -338,6 +357,65 @@ Always include the "response" field with a friendly message.`;
               }
               
               assistantMessage = data.response || `Added ${plantsAdded.length} plant(s) to "${data.bedName}"!`;
+            } else if (data.action === "remove_plants" && data.plantNames && data.plantNames.length > 0) {
+              // Find the bed
+              const beds = await storage.getGardenBedsByUser(userId);
+              const bed = beds.find(b => b.bedName.toLowerCase() === data.bedName.toLowerCase());
+              
+              if (bed) {
+                const plantsInBed = await storage.getPlantsByBed(bed.id);
+                const plantsRemoved: string[] = [];
+                
+                for (const plantName of data.plantNames) {
+                  const plantToRemove = plantsInBed.find(
+                    p => p.commonName.toLowerCase() === plantName.toLowerCase()
+                  );
+                  
+                  if (plantToRemove) {
+                    await storage.deletePlant(plantToRemove.id);
+                    plantsRemoved.push(plantToRemove.commonName);
+                  }
+                }
+                
+                if (plantsRemoved.length > 0) {
+                  assistantMessage = data.response || `Removed ${plantsRemoved.join(", ")} from "${data.bedName}".`;
+                } else {
+                  assistantMessage = `I couldn't find those plants in "${data.bedName}". Could you check the names?`;
+                }
+              } else {
+                assistantMessage = `I couldn't find a bed called "${data.bedName}". Could you check the name?`;
+              }
+            } else if (data.action === "remove_bed") {
+              // Find and delete the bed
+              const beds = await storage.getGardenBedsByUser(userId);
+              
+              // Try to find bed by exact name or flexible matching
+              let bed = beds.find(b => b.bedName.toLowerCase() === data.bedName.toLowerCase());
+              
+              // If not found, try removing common suffixes like " bed"
+              if (!bed && data.bedName) {
+                const cleanBedName = data.bedName.toLowerCase().replace(/\s+bed$/i, '').trim();
+                bed = beds.find(b => b.bedName.toLowerCase() === cleanBedName);
+              }
+              
+              if (bed) {
+                console.log(`[Chat] Deleting bed: ${bed.bedName} (id: ${bed.id})`);
+                
+                // Delete all plants in the bed first
+                const plantsInBed = await storage.getPlantsByBed(bed.id);
+                console.log(`[Chat] Deleting ${plantsInBed.length} plants from bed`);
+                for (const plant of plantsInBed) {
+                  await storage.deletePlant(plant.id);
+                }
+                
+                // Delete the bed
+                await storage.deleteGardenBed(bed.id);
+                console.log(`[Chat] Bed deleted successfully`);
+                assistantMessage = data.response || `Deleted the garden bed "${bed.bedName}" and all its plants.`;
+              } else {
+                console.log(`[Chat] Bed not found: "${data.bedName}". Available beds:`, beds.map(b => b.bedName));
+                assistantMessage = `I couldn't find a bed called "${data.bedName}". You have: ${beds.map(b => b.bedName).join(", ")}. Could you check the name?`;
+              }
             } else {
               assistantMessage = data.response || response.text || "Got it!";
             }
