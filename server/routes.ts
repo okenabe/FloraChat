@@ -354,64 +354,79 @@ When you have enough information about a plant and which bed it belongs to, imme
             ],
           });
 
-          // Handle function calls
+          // Handle function calls - process ALL of them
           let assistantMessage: string;
           const functionCalls = response.functionCalls;
           
           if (functionCalls && functionCalls.length > 0) {
-            const functionCall = functionCalls[0];
-            const { name, args } = functionCall;
+            const results: string[] = [];
+            let createdBed: any = null;
+            const plantsAdded: string[] = [];
             
-            if (name === "create_garden_bed") {
-              // Create the garden bed
-              const newBed = await storage.createGardenBed({
-                userId,
-                bedName: args.bedName,
-                sunExposure: args.sunExposure || null,
-                soilType: args.soilType || null,
-                notes: args.notes || null,
-                bedSizeSqft: null,
-                soilMoisture: null,
-              });
+            // Process all function calls
+            for (const functionCall of functionCalls) {
+              const { name, args } = functionCall;
               
-              assistantMessage = `Great! I've created the "${args.bedName}" garden bed for you. You can now add plants to it!`;
-            } else if (name === "add_plant_to_bed") {
-              // Find or create the bed
-              const beds = await storage.getGardenBedsByUser(userId);
-              let bed = beds.find(b => b.bedName.toLowerCase() === args.bedName.toLowerCase());
-              
-              if (!bed) {
-                // Create the bed if it doesn't exist
-                bed = await storage.createGardenBed({
+              if (name === "create_garden_bed") {
+                // Create the garden bed
+                createdBed = await storage.createGardenBed({
                   userId,
                   bedName: args.bedName,
-                  sunExposure: null,
-                  soilType: null,
-                  notes: null,
+                  sunExposure: args.sunExposure || null,
+                  soilType: args.soilType || null,
+                  notes: args.notes || null,
                   bedSizeSqft: null,
                   soilMoisture: null,
                 });
+                results.push(`Created "${args.bedName}" garden bed`);
+              } else if (name === "add_plant_to_bed") {
+                // Find or create the bed
+                const beds = await storage.getGardenBedsByUser(userId);
+                let bed = beds.find(b => b.bedName.toLowerCase() === args.bedName.toLowerCase());
+                
+                if (!bed) {
+                  // Create the bed if it doesn't exist
+                  bed = await storage.createGardenBed({
+                    userId,
+                    bedName: args.bedName,
+                    sunExposure: null,
+                    soilType: null,
+                    notes: null,
+                    bedSizeSqft: null,
+                    soilMoisture: null,
+                  });
+                  results.push(`Created "${args.bedName}" garden bed`);
+                }
+                
+                // Add the plant
+                await storage.createPlant({
+                  bedId: bed.id,
+                  commonName: args.commonName,
+                  scientificName: args.scientificName || null,
+                  quantity: args.quantity || 1,
+                  healthStatus: args.healthStatus || null,
+                  notes: args.notes || null,
+                  plantType: null,
+                  datePlanted: null,
+                  imageUrl: null,
+                  spacingInches: null,
+                  currentHeight: null,
+                  identificationConfidence: null,
+                });
+                
+                const qty = args.quantity || 1;
+                plantsAdded.push(`${qty} ${args.commonName}`);
               }
-              
-              // Add the plant
-              await storage.createPlant({
-                bedId: bed.id,
-                commonName: args.commonName,
-                scientificName: args.scientificName || null,
-                quantity: args.quantity || 1,
-                healthStatus: args.healthStatus || null,
-                notes: args.notes || null,
-                plantType: null,
-                datePlanted: null,
-                imageUrl: null,
-                spacingInches: null,
-                currentHeight: null,
-                identificationConfidence: null,
-              });
-              
-              assistantMessage = `Perfect! I've added ${args.quantity || 1} ${args.commonName} to the "${bed.bedName}" bed. Check the Beds page to see it!`;
+            }
+            
+            // Build a friendly response message
+            if (plantsAdded.length > 0) {
+              const bedName = createdBed?.bedName || functionCalls[0].args.bedName;
+              assistantMessage = `Perfect! I've added the following to the "${bedName}" bed:\n${plantsAdded.map(p => `• ${p}`).join('\n')}\n\nCheck the Beds page to see your garden!`;
+            } else if (createdBed) {
+              assistantMessage = `Great! I've created the "${createdBed.bedName}" garden bed for you. You can now add plants to it!`;
             } else {
-              assistantMessage = response.text || "I'm sorry, I couldn't process that.";
+              assistantMessage = results.join('. ') || response.text || "Done!";
             }
           } else {
             assistantMessage = response.text || "I'm sorry, I couldn't process that.";
