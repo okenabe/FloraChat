@@ -9,6 +9,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
+import { GoogleGenAI } from "@google/genai";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -233,13 +234,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let assistantMessage: string;
 
-      // Check if OpenAI is configured
-      if (!process.env.OPENAI_API_KEY) {
-        assistantMessage = "I'm not fully configured yet (missing OpenAI API key), but I've saved your message! You can still browse your garden beds and I'll remember our conversation.";
+      // Check if Gemini is configured
+      if (!process.env.GEMINI_API_KEY) {
+        assistantMessage = "I'm not fully configured yet (missing Gemini API key), but I've saved your message! You can still browse your garden beds and I'll remember our conversation.";
       } else {
         try {
-        // Call OpenAI API for entity extraction and response
-        const systemPrompt = `You are a helpful garden assistant that helps users catalog plants. 
+          // Initialize Gemini AI - using blueprint:javascript_gemini
+          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+          // System prompt for garden assistant
+          const systemPrompt = `You are a helpful garden assistant that helps users catalog plants. 
 Extract structured data from user messages about plants, including:
 - Plant names (common or scientific)
 - Quantities
@@ -251,32 +255,32 @@ Extract structured data from user messages about plants, including:
 
 Be conversational and helpful. Ask clarifying questions when needed.`;
 
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...messages,
+          // Convert messages to Gemini format
+          const geminiHistory = messages.slice(0, -1).map((msg: any) => ({
+            role: msg.role === "assistant" ? "model" : "user",
+            parts: [{ text: msg.content }],
+          }));
+
+          // Call Gemini API using gemini-2.5-flash model
+          const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            config: {
+              systemInstruction: systemPrompt,
+            },
+            contents: [
+              ...geminiHistory,
+              {
+                role: "user",
+                parts: [{ text: message }],
+              },
             ],
-          }),
-        });
+          });
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error?.message || response.statusText);
-        }
-
-          const data = await response.json();
-          assistantMessage = data.choices[0].message.content;
+          assistantMessage = response.text || "I'm sorry, I couldn't process that.";
         } catch (error: any) {
-          // If OpenAI fails, provide a helpful fallback message
+          // If Gemini fails, provide a helpful fallback message
           assistantMessage = "I'm having trouble connecting to my AI service right now. Could you try again in a moment? Your message has been saved.";
-          console.error("OpenAI API error:", error);
+          console.error("Gemini API error:", error);
         }
       }
 
