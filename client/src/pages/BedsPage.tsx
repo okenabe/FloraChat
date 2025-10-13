@@ -22,6 +22,9 @@ export default function BedsPage() {
       return res.json();
     },
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const { data: plantsMap = {} } = useQuery<Record<string, Plant[]>>({
@@ -40,6 +43,9 @@ export default function BedsPage() {
       return Object.fromEntries(results);
     },
     enabled: !!user && beds.length > 0,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   if (isLoading) {
