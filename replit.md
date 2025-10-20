@@ -118,3 +118,74 @@ Preferred communication style: Simple, everyday language.
 5. **Conversation Persistence**: Chat history stored in database with JSON message format for flexible message structure
 
 6. **Progressive Enhancement**: Core functionality works without JavaScript, enhanced with React for interactivity
+
+## Current Feature Status
+
+### Completed Features ✅
+- Plant identification from photos (Plant.id API integration)
+- Natural language plant cataloging via chat (Google Gemini AI)
+- Full CRUD operations for beds and plants (UI + chat commands)
+- Edit/delete functionality with confirmation dialogs
+- Form validation (quantity must be valid number > 0)
+- Cache invalidation and real-time UI updates
+- Conversation history persistence
+- Mobile-responsive design with bottom navigation
+
+### Planned Features 📋
+
+#### Task Management & Grouping System (HIGH PRIORITY)
+**Business Value**: Customer research indicates task management is a top requested feature.
+
+**Architectural Design** (from 2025 planning discussion):
+
+1. **Schema Additions**:
+   - `sites` table: Physical garden locations (id, userId, name, notes)
+   - Optional `siteId` foreign key on `garden_beds` table
+   - `task_categories` table: Care activity catalog (id, name, description)
+     - Examples: "Water", "Fertilize", "Prune", "Harvest"
+   - `plant_task_categories` join table: Links plants to tasks (plantId, taskCategoryId, recurrence, nextDueOn)
+   - `plant_traits` table: Generic key/value for extensible attributes (plantId, key, value)
+     - Examples: season="spring", companionGroup="herbs"
+
+2. **API Design**:
+   - Unified endpoint: `GET /api/plant-groups?groupBy=<mode>`
+   - Supported modes: `site`, `task`, `conditions`, `health`, `traits`
+   - Response format:
+     ```json
+     {
+       "groups": [
+         {
+           "groupKey": "string",
+           "label": "string",
+           "plants": [...],
+           "meta": { /* group-specific info */ }
+         }
+       ]
+     }
+     ```
+   - CRUD endpoints for task assignments and traits
+
+3. **Frontend Implementation**:
+   - View selector (Tabs on desktop, Select on mobile)
+   - Query key pattern: `['/api/plant-groups', userId, groupBy]`
+   - Per-mode caching for fast switching
+   - Reuse existing Bed/Plant card components with adapter props
+
+4. **Implementation Phases**:
+   - Phase 1: Condition-based grouping (uses existing data, no schema changes)
+   - Phase 2: Site/location grouping (new `sites` table)
+   - Phase 3: Task management system (task tables + scheduling)
+   - Phase 4: Generic traits for unlimited extensibility
+
+**Technical Considerations**:
+- Add composite indexes on bedId/taskCategoryId and siteId for efficient queries
+- Encapsulate grouping logic in `PlantGroupingService` for reuse across chat + REST
+- Enable chat AI to reference and manage task assignments
+- Consider recurrence patterns and due date calculations for task scheduling
+
+**Next Steps When Resuming**:
+1. Decide on initial implementation scope (start with Phase 1 or full system)
+2. Design schema migrations with seed data for default sites/tasks
+3. Implement PlantGroupingService + REST handlers
+4. Build UI view selector and integrate with TanStack Query
+5. Update Gemini AI prompts to understand task-based queries
