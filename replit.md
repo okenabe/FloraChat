@@ -1,4 +1,4 @@
-# Garden Catalog - AI Plant Assistant
+Great# Garden Catalog - AI Plant Assistant
 
 ## Overview
 
