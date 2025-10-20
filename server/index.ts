@@ -54,7 +54,15 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    // In production, serve static files from the client build
+    const path = await import("path");
+    const clientPath = path.resolve(import.meta.dirname, "..", "client", "dist");
+    app.use(express.static(clientPath));
+    
+    // Fallback to index.html for client-side routing
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(clientPath, "index.html"));
+    });
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
