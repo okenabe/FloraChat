@@ -10,6 +10,7 @@ import NotFound from "@/pages/not-found";
 import { MessageSquare, Grid3x3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logoUrl from "@/assets/clorofil-logo.png";
+import { FeedbackButton } from "@/components/FeedbackButton";
 
 function Header() {
   const [location] = useLocation();
@@ -26,26 +27,29 @@ function Header() {
           <img src={logoUrl} alt="Clorofil" className="h-[125px] w-auto" />
         </Link>
         
-        <nav className="hidden lg:flex items-center gap-6">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location === item.path;
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-md transition-colors hover-elevate",
-                  isActive ? "text-primary font-medium" : "text-muted-foreground"
-                )}
-                data-testid={`nav-${item.label.toLowerCase()}`}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="flex items-center gap-4">
+          <nav className="hidden lg:flex items-center gap-6">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-md transition-colors hover-elevate",
+                    isActive ? "text-primary font-medium" : "text-muted-foreground"
+                  )}
+                  data-testid={`nav-${item.label.toLowerCase()}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <FeedbackButton />
+        </div>
       </div>
     </header>
   );
