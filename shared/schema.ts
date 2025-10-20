@@ -55,6 +55,16 @@ export const conversations = pgTable("conversations", {
   lastUpdated: timestamp("last_updated").defaultNow().notNull(),
 });
 
+export const feedback = pgTable("feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  message: text("message").notNull(),
+  imageUrls: text("image_urls"),
+  userAgent: text("user_agent"),
+  pageUrl: text("page_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   gardenBeds: many(gardenBeds),
   conversations: many(conversations),
@@ -106,6 +116,11 @@ export const insertConversationSchema = createInsertSchema(conversations).omit({
   lastUpdated: true,
 });
 
+export const insertFeedbackSchema = createInsertSchema(feedback).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -117,3 +132,6 @@ export type Plant = typeof plants.$inferSelect;
 
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
 export type Conversation = typeof conversations.$inferSelect;
+
+export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
+export type Feedback = typeof feedback.$inferSelect;

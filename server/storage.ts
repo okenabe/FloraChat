@@ -3,6 +3,7 @@ import {
   gardenBeds,
   plants,
   conversations,
+  feedback,
   type User,
   type InsertUser,
   type GardenBed,
@@ -11,6 +12,8 @@ import {
   type InsertPlant,
   type Conversation,
   type InsertConversation,
+  type Feedback,
+  type InsertFeedback,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -40,6 +43,9 @@ export interface IStorage {
   getConversation(userId: string): Promise<Conversation | undefined>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
   updateConversation(id: string, conversation: Partial<InsertConversation>): Promise<Conversation>;
+
+  // Feedback operations
+  createFeedback(feedbackData: InsertFeedback): Promise<Feedback>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -156,6 +162,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(conversations.id, id))
       .returning();
     return updated;
+  }
+
+  // Feedback operations
+  async createFeedback(feedbackData: InsertFeedback): Promise<Feedback> {
+    const [newFeedback] = await db.insert(feedback).values(feedbackData).returning();
+    return newFeedback;
   }
 }
 
