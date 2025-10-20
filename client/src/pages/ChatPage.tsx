@@ -3,15 +3,10 @@ import { useMutation } from "@tanstack/react-query";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { TypingIndicator } from "@/components/TypingIndicator";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { useUser } from "@/lib/userContext";
-import { apiRequest } from "@/lib/queryClient";
-import { Sprout, Menu, X, MessageSquare, Grid3x3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Sprout } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Link, useLocation } from "wouter";
-import { cn } from "@/lib/utils";
 
 interface Message {
   id: string;
@@ -22,7 +17,6 @@ interface Message {
 
 export default function ChatPage() {
   const { user, isLoading: userLoading } = useUser();
-  const [location] = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
@@ -330,45 +324,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <header className="sticky top-0 z-10 flex items-center justify-between px-4 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Sprout className="h-6 w-6 text-primary" />
-            <h1 className="text-lg font-display font-semibold" data-testid="text-app-title">
-              Garden Catalog
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <nav className="hidden lg:flex items-center gap-1">
-            <Link href="/">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(location === "/" && "bg-accent")}
-                data-testid="nav-chat-desktop"
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Chat
-              </Button>
-            </Link>
-            <Link href="/beds">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(location === "/beds" && "bg-accent")}
-                data-testid="nav-beds-desktop"
-              >
-                <Grid3x3 className="h-4 w-4 mr-2" />
-                Beds
-              </Button>
-            </Link>
-          </nav>
-          <ThemeToggle />
-        </div>
-      </header>
-
+    <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-4 py-6" data-testid="chat-messages-container">
         <div className="max-w-4xl mx-auto">
           {messages.map((message) => (

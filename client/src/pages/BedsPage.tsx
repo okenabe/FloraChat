@@ -1,11 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useUser } from "@/lib/userContext";
 import { Button } from "@/components/ui/button";
-import { Plus, Sprout, MessageSquare, Grid3x3, Pencil, Trash2 } from "lucide-react";
+import { Sprout, Pencil, Trash2 } from "lucide-react";
 import type { GardenBed, Plant } from "@shared/schema";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { Link, useLocation } from "wouter";
-import { cn } from "@/lib/utils";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sun, Droplet, Ruler } from "lucide-react";
@@ -36,7 +33,6 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function BedsPage() {
   const { user } = useUser();
-  const [location] = useLocation();
   const { toast } = useToast();
   
   const [editingBed, setEditingBed] = useState<GardenBed | null>(null);
@@ -248,41 +244,7 @@ export default function BedsPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-10 flex items-center justify-between px-4 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex items-center gap-2">
-          <Sprout className="h-6 w-6 text-primary" />
-          <h1 className="text-lg font-display font-semibold">Garden Beds</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <nav className="hidden lg:flex items-center gap-1">
-            <Link href="/">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(location === "/" && "bg-accent")}
-                data-testid="nav-chat-desktop"
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Chat
-              </Button>
-            </Link>
-            <Link href="/beds">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(location === "/beds" && "bg-accent")}
-                data-testid="nav-beds-desktop"
-              >
-                <Grid3x3 className="h-4 w-4 mr-2" />
-                Beds
-              </Button>
-            </Link>
-          </nav>
-          <ThemeToggle />
-        </div>
-      </header>
-
+    <div className="min-h-full flex flex-col">
       <main className="flex-1 p-4">
         <div className="max-w-7xl mx-auto space-y-4">
           <div className="flex items-center justify-between">

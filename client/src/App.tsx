@@ -11,6 +11,7 @@ import { MessageSquare, Grid3x3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logoUrl from "@/assets/clorofil-logo.png";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function Header() {
   const [location] = useLocation();
@@ -49,6 +50,7 @@ function Header() {
             })}
           </nav>
           <FeedbackButton />
+          <ThemeToggle />
         </div>
       </div>
     </header>
