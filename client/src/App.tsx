@@ -9,6 +9,48 @@ import BedsPage from "@/pages/BedsPage";
 import NotFound from "@/pages/not-found";
 import { MessageSquare, Grid3x3 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logoUrl from "@/assets/clorofil-logo.png";
+
+function Header() {
+  const [location] = useLocation();
+
+  const navItems = [
+    { path: "/", label: "Chat", icon: MessageSquare },
+    { path: "/beds", label: "Beds", icon: Grid3x3 },
+  ];
+
+  return (
+    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="container flex items-center justify-between h-16 px-4 mx-auto">
+        <Link href="/" className="flex items-center gap-3 hover-elevate px-2 py-1 rounded-md transition-all" data-testid="link-home">
+          <img src={logoUrl} alt="Clorofil" className="h-8 w-auto" />
+          <span className="text-xl font-bold text-foreground">Clorofil</span>
+        </Link>
+        
+        <nav className="hidden lg:flex items-center gap-6">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location === item.path;
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-md transition-colors hover-elevate",
+                  isActive ? "text-primary font-medium" : "text-muted-foreground"
+                )}
+                data-testid={`nav-${item.label.toLowerCase()}`}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    </header>
+  );
+}
 
 function BottomNav() {
   const [location] = useLocation();
@@ -47,6 +89,7 @@ function BottomNav() {
 function Router() {
   return (
     <>
+      <Header />
       <Switch>
         <Route path="/" component={ChatPage} />
         <Route path="/beds" component={BedsPage} />
@@ -62,7 +105,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <UserProvider>
-          <div className="pb-16 lg:pb-0">
+          <div className="pb-16 lg:pb-0 min-h-screen flex flex-col">
             <Router />
           </div>
         </UserProvider>
