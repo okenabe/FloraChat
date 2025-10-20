@@ -5,6 +5,7 @@ import {
   insertUserSchema,
   insertGardenBedSchema,
   insertPlantSchema,
+  insertFeedbackSchema,
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -465,6 +466,38 @@ Always include the "response" field with a friendly message.`;
         conversationId: conversation.id,
       });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Feedback routes
+  app.post("/api/feedback", upload.array("images", 5), async (req, res) => {
+    try {
+      const { message, userId, pageUrl } = req.body;
+      
+      if (!message || !message.trim()) {
+        return res.status(400).json({ error: "Feedback message is required" });
+      }
+
+      const imageUrls: string[] = [];
+      if (req.files && Array.isArray(req.files)) {
+        for (const file of req.files) {
+          imageUrls.push(`/uploads/${file.filename}`);
+        }
+      }
+
+      const feedbackData = insertFeedbackSchema.parse({
+        userId: userId || null,
+        message: message.trim(),
+        imageUrls: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
+        userAgent: req.get("user-agent") || null,
+        pageUrl: pageUrl || null,
+      });
+
+      const newFeedback = await storage.createFeedback(feedbackData);
+      res.json({ success: true, feedback: newFeedback });
+    } catch (error: any) {
+      console.error("Feedback submission error:", error);
       res.status(500).json({ error: error.message });
     }
   });
