@@ -180,27 +180,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Call Plant.id API
-      const response = await fetch("https://api.plant.id/v3/identification?details=common_names,url,taxonomy,wiki_description", {
+      console.log("[Plant ID] Received request, base64 length:", base64Image?.length || 0);
+
+      // Call Plant.id API with correct format
+      const requestBody = {
+        images: [base64Image],
+        latitude: 49.207,
+        longitude: 16.608,
+        similar_images: true,
+      };
+
+      console.log("[Plant ID] Sending request to Plant.id API...");
+      
+      const response = await fetch("https://plant.id/api/v3/identification", {
         method: "POST",
         headers: {
           "Api-Key": process.env.PLANTID_API_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          images: [base64Image],
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("Plant.id API error:", errorData);
+        console.error("[Plant ID] API error response:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
         throw new Error(`Plant.id API error: ${response.statusText} - ${JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
+      console.log("[Plant ID] Success! Identified plant");
       res.json(data);
     } catch (error: any) {
+      console.error("[Plant ID] Error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });

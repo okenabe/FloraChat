@@ -2,8 +2,7 @@ Great# Garden Catalog - AI Plant Assistant
 
 ## Overview
 
-An intelligent conversational chatbot application that helps users catalog plants in their garden beds. The system identifies plants from photos, understands natural language descriptions, and extracts structured data from casual conversation to maintain a comprehensive garden database.
-
+Thanks
 **Core Functionality:**
 - AI-powered plant identification from photos
 - Natural language conversation interface for plant cataloging

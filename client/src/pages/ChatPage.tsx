@@ -143,6 +143,15 @@ export default function ChatPage() {
     };
     setMessages((prev) => [...prev, userMsg]);
 
+    // Show "analyzing" message
+    const analyzingMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: "Let me analyze that photo...",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+    setMessages((prev) => [...prev, analyzingMsg]);
+
     try {
       // Upload the photo
       const formData = new FormData();
@@ -162,109 +171,147 @@ export default function ChatPage() {
       // Convert to base64 for Plant.id API
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
+        try {
+          const base64 = (reader.result as string).split(",")[1];
 
-        // Identify the plant
-        const identifyRes = await fetch("/api/identify-plant", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ base64Image: base64, imageUrl: url }),
-        });
-
-        if (!identifyRes.ok) {
-          throw new Error("Plant identification failed");
-        }
-
-        const data = await identifyRes.json();
-        
-        if (data.result?.is_plant?.binary) {
-          const suggestions = data.result.classification.suggestions.slice(0, 3);
-          const topMatch = suggestions[0];
-          
-          // Build context message for Gemini
-          let contextMessage = `I just analyzed a plant photo using Plant.id API. Here's what I found:\n\n`;
-          contextMessage += `Primary identification: ${topMatch.name}`;
-          if (topMatch.details?.common_names?.length > 0) {
-            contextMessage += ` (commonly known as: ${topMatch.details.common_names.slice(0, 3).join(", ")})`;
-          }
-          contextMessage += `\nConfidence: ${Math.round(topMatch.probability * 100)}%\n`;
-          
-          if (topMatch.details?.taxonomy) {
-            const tax = topMatch.details.taxonomy;
-            contextMessage += `\nTaxonomy:`;
-            if (tax.family) contextMessage += `\n- Family: ${tax.family}`;
-            if (tax.genus) contextMessage += `\n- Genus: ${tax.genus}`;
-          }
-          
-          if (suggestions.length > 1) {
-            contextMessage += `\n\nAlternative possibilities:`;
-            suggestions.slice(1).forEach((alt: any, idx: number) => {
-              contextMessage += `\n${idx + 2}. ${alt.name} (${Math.round(alt.probability * 100)}% confidence)`;
-            });
-          }
-          
-          // Send identification context to Gemini via chat API
-          const chatResponse = await fetch("/api/chat", {
+          // Identify the plant
+          const identifyRes = await fetch("/api/identify-plant", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: contextMessage,
-              userId: user?.id,
-            }),
+            body: JSON.stringify({ base64Image: base64, imageUrl: url }),
           });
-          
-          if (chatResponse.ok) {
-            const chatData = await chatResponse.json();
+
+          if (!identifyRes.ok) {
+            const errorData = await identifyRes.json().catch(() => ({ error: "Unknown error" }));
+            throw new Error(errorData.error || "Plant identification failed");
+          }
+
+          const data = await identifyRes.json();
+        
+          if (data.result?.is_plant?.binary) {
+            const suggestions = data.result.classification.suggestions.slice(0, 3);
+            const topMatch = suggestions[0];
             
-            // Add Gemini's response (which now has context about the plant)
-            const assistantMsg: Message = {
-              id: (Date.now() + 1).toString(),
-              role: "assistant",
-              content: chatData.message,
-              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
-          } else {
-            // Fallback if chat API fails
-            let responseContent = `Great photo! 📸 I've identified this plant:\n\n`;
-            responseContent += `**${topMatch.name}**\n`;
-            responseContent += `Confidence: ${Math.round(topMatch.probability * 100)}%\n\n`;
+            // Remove the "analyzing" message and add the result
+            setMessages((prev) => prev.filter(m => m.id !== analyzingMsg.id));
             
+            // Build context message for Gemini
+            let contextMessage = `I just analyzed a plant photo using Plant.id API. Here's what I found:\n\n`;
+            contextMessage += `Primary identification: ${topMatch.name}`;
             if (topMatch.details?.common_names?.length > 0) {
-              responseContent += `Common names: ${topMatch.details.common_names.slice(0, 3).join(", ")}\n\n`;
+              contextMessage += ` (commonly known as: ${topMatch.details.common_names.slice(0, 3).join(", ")})`;
+            }
+            contextMessage += `\nConfidence: ${Math.round(topMatch.probability * 100)}%\n`;
+            
+            if (topMatch.details?.taxonomy) {
+              const tax = topMatch.details.taxonomy;
+              contextMessage += `\nTaxonomy:`;
+              if (tax.family) contextMessage += `\n- Family: ${tax.family}`;
+              if (tax.genus) contextMessage += `\n- Genus: ${tax.genus}`;
             }
             
             if (suggestions.length > 1) {
-              responseContent += `It could also be:\n`;
+              contextMessage += `\n\nAlternative possibilities:`;
               suggestions.slice(1).forEach((alt: any, idx: number) => {
-                responseContent += `${idx + 2}. ${alt.name} (${Math.round(alt.probability * 100)}%)\n`;
+                contextMessage += `\n${idx + 2}. ${alt.name} (${Math.round(alt.probability * 100)}% confidence)`;
               });
-              responseContent += `\n`;
             }
             
-            responseContent += `Would you like to add this to Clorofil? Tell me which bed it's in, or I can help you create a new bed!`;
+            // Send identification context to Gemini via chat API
+            const chatResponse = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                message: contextMessage,
+                userId: user?.id,
+              }),
+            });
+            
+            if (chatResponse.ok) {
+              const chatData = await chatResponse.json();
+              
+              // Add Gemini's response (which now has context about the plant)
+              const assistantMsg: Message = {
+                id: (Date.now() + 2).toString(),
+                role: "assistant",
+                content: chatData.message,
+                timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              };
+              setMessages((prev) => [...prev, assistantMsg]);
+            } else {
+              // Fallback if chat API fails
+              let responseContent = `Great photo! 📸 I've identified this plant:\n\n`;
+              responseContent += `**${topMatch.name}**\n`;
+              responseContent += `Confidence: ${Math.round(topMatch.probability * 100)}%\n\n`;
+              
+              if (topMatch.details?.common_names?.length > 0) {
+                responseContent += `Common names: ${topMatch.details.common_names.slice(0, 3).join(", ")}\n\n`;
+              }
+              
+              if (suggestions.length > 1) {
+                responseContent += `It could also be:\n`;
+                suggestions.slice(1).forEach((alt: any, idx: number) => {
+                  responseContent += `${idx + 2}. ${alt.name} (${Math.round(alt.probability * 100)}%)\n`;
+                });
+                responseContent += `\n`;
+              }
+              
+              responseContent += `Would you like to add this to Clorofil? Tell me which bed it's in, or I can help you create a new bed!`;
 
-            const assistantMsg: Message = {
-              id: (Date.now() + 1).toString(),
-              role: "assistant",
-              content: responseContent,
-              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
+              const assistantMsg: Message = {
+                id: (Date.now() + 2).toString(),
+                role: "assistant",
+                content: responseContent,
+                timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              };
+              setMessages((prev) => [...prev, assistantMsg]);
+            }
+          } else {
+            throw new Error("Not a plant image");
           }
-        } else {
-          throw new Error("Not a plant image");
+        } catch (error: any) {
+          console.error("Photo identification error:", error);
+          // Remove the "analyzing" message
+          setMessages((prev) => prev.filter(m => m.id !== analyzingMsg.id));
+          
+          const errorMsg: Message = {
+            id: (Date.now() + 2).toString(),
+            role: "assistant",
+            content: error.message.includes("not configured")
+              ? "Plant identification requires PLANTID_API_KEY to be configured. For now, you can describe your plant and I'll help you catalog it!"
+              : `I had trouble identifying that plant: ${error.message}. Could you describe it for me instead?`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          };
+          setMessages((prev) => [...prev, errorMsg]);
         }
       };
+      
+      reader.onerror = () => {
+        console.error("File reading error");
+        // Remove the "analyzing" message
+        setMessages((prev) => prev.filter(m => m.id !== analyzingMsg.id));
+        
+        const errorMsg: Message = {
+          id: (Date.now() + 2).toString(),
+          role: "assistant",
+          content: "I had trouble reading that image file. Could you try again with a different photo?",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      };
+      
       reader.readAsDataURL(file);
     } catch (error: any) {
-      console.error("Photo processing error:", error);
+      console.error("Photo upload error:", error);
+      // Remove the "analyzing" message
+      setMessages((prev) => prev.filter(m => m.id !== analyzingMsg.id));
+      
       const errorMsg: Message = {
-        id: (Date.now() + 1).toString(),
+        id: (Date.now() + 2).toString(),
         role: "assistant",
-        content: error.message.includes("not configured")
-          ? "Plant identification requires PLANTID_API_KEY to be configured. For now, you can describe your plant and I'll help you catalog it!"
-          : "I had trouble identifying that plant. Could you describe it for me? What does it look like?",
+        content: error.message.includes("Failed to upload")
+          ? "I had trouble uploading that photo. Could you try again?"
+          : "Something went wrong with the photo upload. Please try again!",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, errorMsg]);
