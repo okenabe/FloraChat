@@ -22,9 +22,8 @@ function Header() {
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container flex items-center justify-between h-16 px-4 mx-auto">
-        <Link href="/" className="flex items-center gap-3 hover-elevate px-2 py-1 rounded-md transition-all" data-testid="link-home">
-          <img src={logoUrl} alt="Clorofil" className="h-8 w-auto" />
-          <span className="text-xl font-bold text-foreground">Clorofil</span>
+        <Link href="/" className="flex items-center hover-elevate px-2 py-1 rounded-md transition-all" data-testid="link-home">
+          <img src={logoUrl} alt="Clorofil" className="h-10 w-auto" />
         </Link>
         
         <nav className="hidden lg:flex items-center gap-6">
