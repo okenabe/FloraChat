@@ -12,7 +12,21 @@ import path from "path";
 import fs from "fs/promises";
 import { GoogleGenAI } from "@google/genai";
 
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ 
+  dest: "uploads/",
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB per file
+    files: 5,
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (JPEG, PNG, GIF, WebP) are allowed'));
+    }
+  },
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User routes
@@ -487,7 +501,7 @@ Always include the "response" field with a friendly message.`;
       }
 
       const feedbackData = insertFeedbackSchema.parse({
-        userId: userId || null,
+        userId: userId && userId.trim() !== "" ? userId : null,
         message: message.trim(),
         imageUrls: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
         userAgent: req.get("user-agent") || null,
