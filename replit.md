@@ -129,8 +129,6 @@ Preferred communication style: Simple, everyday language.
 - Cache invalidation and real-time UI updates
 - Conversation history persistence
 - Mobile-responsive design with bottom navigation
-- User feedback system (text + image uploads, max 5MB per image)
-- Single unified header with Clorofil logo, navigation, feedback button, and theme toggle
 
 ### Planned Features 📋
 
