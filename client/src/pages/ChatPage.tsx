@@ -325,7 +325,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-4 py-6" data-testid="chat-messages-container">
+      <div className="flex-1 overflow-y-auto px-4 py-6 pb-32 lg:pb-6" data-testid="chat-messages-container">
         <div className="max-w-4xl mx-auto">
           {messages.map((message) => (
             <ChatMessage
