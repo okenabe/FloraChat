@@ -126,7 +126,7 @@ export function PlantIdentificationCard({
 
       <CardFooter>
         <Button onClick={onAddToGarden} className="w-full" data-testid="button-add-to-garden">
-          Add to Garden Catalog
+          Add to Clorofil
         </Button>
       </CardFooter>
     </Card>

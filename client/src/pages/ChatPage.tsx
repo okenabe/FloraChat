@@ -242,7 +242,7 @@ export default function ChatPage() {
               responseContent += `\n`;
             }
             
-            responseContent += `Would you like to add this to your garden catalog? Tell me which bed it's in, or I can help you create a new bed!`;
+            responseContent += `Would you like to add this to Clorofil? Tell me which bed it's in, or I can help you create a new bed!`;
 
             const assistantMsg: Message = {
               id: (Date.now() + 1).toString(),
